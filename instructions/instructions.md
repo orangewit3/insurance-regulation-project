@@ -1,259 +1,418 @@
-# Project Requirements Document (PRD)
+# Product Requirements Document (PRD)
 
 ## 1. Project Overview
 
-We are building a web application that displays insurance regulation changes in specific US states for the year 2024 and demonstrates how these changes impact a defined set of underwriting guidelines. The application will leverage Next.js 14, Shadcn/UI, TailwindCSS, Lucide icons, and OpenAI.
+You are building a web application that:
+1. Fetches and displays 2024 insurance regulation changes in certain US states from a Supabase database.
+2. Shows how these regulation changes impact existing underwriting guidelines (e.g., Rule P1 or Rule P2).
+3. Allows users to search and filter regulations by keywords, state, status, or specific rules impacted.
 
-We will collect regulation data by scraping publicly available state legislature websites (initially Wyoming and New York), then process and analyze this data to determine which underwriting rules may be affected. The results are stored in local JSON files and displayed in the UI as cards, complete with search and filter capabilities.
+Technology stack (as specified):
+* Next.js 14
+* shadcn (UI components)
+* Tailwind CSS
+* Lucide Icons
+* OpenAI (potentially for advanced summarization or other AI-driven features)
+* Supabase (Postgres database)
 
-## 2. Objectives
+## 2. Core Functionalities
 
-1. Scrape regulation data from relevant websites for the 2024 session.
-2. Determine insurance-related impact by analyzing each regulation with a prompt to OpenAI.
-3. Store the processed regulation data locally in JSON format.
-4. Display the regulations in a user-friendly UI, with interactive search and filters.
-5. Provide clear documentation and lightweight file structure for ease of maintenance and future expansion.
+### 2.1. Display Insurance-related regulation cards for 2024
+1. Fetch data from a Supabase Postgres database, storing each row as an InsuranceRegulationDataObject.
+2. Display each InsuranceRegulationDataObject as a list of cards.
+   * Each card should show regulation information in a concise, elegant format.
+   * Include a summarization section.
+   * Highlight which underwriting rules (e.g., Rule P1 or Rule P2) are impacted.
 
-## 3. Scope & Core Functionalities
+### 2.2. Search Bar
+1. The user can type keywords to filter which regulation cards appear.
+2. Return the most relevant cards to the user's query.
 
-### 3.1. Regulation Cards Display
+### 2.3. Filters
+1. The user can apply filters by:
+   * Rules affected (isRuleP1Affected or isRuleP2Affected)
+   * State (e.g., "CA", "NY", "All States")
+   * Status (e.g., "Passed", "Pending")
 
-* Scrape 2024 regulations from:
-  * Wyoming Legislation 2024
-  * NY Senate Legislation
-* Use axios and cheerio to gather basic data (title, session, status, summary, etc.).
-* Send this raw data to OpenAI to create a structured output, referencing our underwriting rules.
-* Store the resulting objects in local JSON files (e.g., ny-insurance-regulations.json and wy-insurance-regulations.json).
-* Render these objects as a list of cards. Each card includes:
-  * Title
-  * High-level regulation info
-  * Short summary
-  * Which underwriting rules are impacted
+## 3. Data Schema & Documentation
 
-### 3.2. Search
+### 3.1 InsuranceRegulationDataObject
 
-* A search bar that filters cards based on keywords in their title or summary.
-
-### 3.3. Filters
-
-* Filter by rules affected (e.g., P1, P2, or None).
-* Filter by state (NY, WY).
-* Filter by status (e.g., "Passed", "In Committee", etc., depending on the website data).
-
-## 4. Project File Structure
-
-To keep the codebase lean yet maintain clarity, we propose the following minimal file/folder organization:
-
-```
-.
-├── app
-│   ├── api
-│   │   └── regulations
-│   │       └── route.ts       // Next.js Route Handler - triggers scraping, analysis, saving
-│   ├── layout.tsx             // Global layout (header, footer, etc.)
-│   ├── page.tsx               // Main page displaying regulation cards, search & filters
-│   └── globals.css            // Global styles (Tailwind, shadcn/ui, etc.)
-├── components
-│   └── regulation-card.tsx    // Component: single regulation card UI
-├── data
-│   ├── ny-insurance-regulations.json
-│   └── wy-insurance-regulations.json
-├── lib
-│   └── regulation-scraper.ts  // All scraping, analysis (OpenAI), Zod schemas, save logic
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-### Key Points:
-
-* **app/api/regulations/route.ts:**
-  * A single Next.js Route Handler that initiates the scraping for both WY and NY.
-  * Calls a function to run each item through OpenAI and then saves the results.
-
-* **lib/regulation-scraper.ts:**
-  * Contains:
-    1. Zod Schema for the InsuranceRegulationDataObject.
-    2. Scraping functions for NY and WY websites using Axios & Cheerio.
-    3. OpenAI request function to analyze each regulation.
-    4. Save function to write the final JSON files.
-
-* **data/*.json:**
-  * Final, structured data from the scraping runs, stored as JSON.
-
-* **components/regulation-card.tsx:**
-  * Reusable UI component that displays a single regulation (title, summary, rules affected, etc.).
-
-* **app/page.tsx:**
-  * Main page that fetches the JSON data (server-side), renders the regulation cards, and provides search/filter controls.
-
-## 5. Detailed Documentation
-
-### 5.1 Insurance Regulation Schema
-
-We rely on a Zod schema to keep our data consistent. The schema looks like this (for reference only):
+We will use a Zod schema to validate each regulation record fetched from Supabase. Below is the reference code snippet (for developer context only) that defines the schema:
 
 ```typescript
 // Define the Zod schema for InsuranceRegulationDataObject
 export const InsuranceRegulationDataObject = z.object({
-  id: z.string(),
-  state: z.enum(['NY', 'WY']),
+  bill: z.string(),
+  state: z.string(),
   session: z.string(),
-  title: z.string(),
   status: z.string(),
   isInsuranceRelated: z.boolean(),
-  summary: z.string(),
-  ruleAffected: z.enum(['P1', 'P2', 'None']),
-  explanation: z.string().optional(),
-  parametersAffected: z.string(),
+  isRuleP1Affected: z.boolean(),
+  isRuleP2Affected: z.boolean(),
+  P1EffectExplanation: z.string(),
+  P2EffectExplanation: z.string(),
+  summary: z.string()
 });
 ```
 
-### 5.2 OpenAI Structured Output
+### 3.2 Fetching Data from Supabase
 
-We need to analyze each regulation to see if it affects insurance underwriting. This is done by calling OpenAI with a prompt, providing both:
-1. Regulation info (title, session, state, etc.)
-2. Underwriting rules (text describing guidelines P1, P2, etc.)
-
-#### Example Prompt & Response
-
-```javascript
-// (For reference only; actual code uses ChatCompletion)
-const prompt = `
-Analyze this regulation and determine its impact on insurance underwriting rules.
-
-Regulation Information:
-Title: {title}
-Summary: {summary}
-Status: {status}
-State: {state}
-
-Underwriting Rules:
-{underwritingRules}
-
-Please analyze the regulation and provide a structured output in the following JSON format:
-{
-  "id": "{id}",
-  "state": "{state}",
-  "session": "{session}",
-  "title": "{title}",
-  "status": "{status}",
-  "isInsuranceRelated": boolean, // ...
-  "summary": "brief summary",
-  "ruleAffected": "P1" | "P2" | "None",
-  "explanation": "explanation if relevant",
-  "parametersAffected": "specific parameters impacted or 'none'"
-}
-`
-```
-
-OpenAI will return JSON, which we then parse with Zod to ensure validity.
-
-### 5.3 Scraping Logic
-
-We use two scraping functions, one each for NY and WY:
-
-1. **scrapeNYSenateRegulations(underwritingRules: string)**
-   * Makes a request with axios to https://www.nysenate.gov/search/legislation (with parameters set to gather all relevant bills).
-   * Uses cheerio to parse HTML elements (div.c-block--bill), extracting:
-     * Bill number (id)
-     * Session (should include "2024")
-     * Title
-     * Status
-     * Summary
-   * For each scraped item belonging to 2024, calls our OpenAI analysis function.
-
-2. **scrapeWyomingRegulations(underwritingRules: string)**
-   * Similar approach, but the website layout is slightly different, so we parse table rows (table.table-legislation tr).
-   * Extract the relevant columns (id, title, status, summary).
-   * Call the analysis function for each row that matches the year 2024.
-
-### 5.4 Saving the Data
-
-Once the data is analyzed, we store it using saveRegulationData(), which:
-1. Builds a filepath (e.g. data/ny-insurance-regulations.json).
-2. Creates directories if needed.
-3. Writes data (in JSON format) to disk.
-
-Example (for reference):
+Below is the reference code snippet (for developer context) showing how we initialize Supabase and validate the data using Zod:
 
 ```typescript
-async function saveRegulationData(
-  regulations: InsuranceRegulation[],
-  state: 'NY' | 'WY'
-): Promise<void> {
-  const outputPath = path.join(process.cwd(), 'data', `${state.toLowerCase()}-insurance-regulations.json`);
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; // Ensure this is securely stored
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Write JSON
-  await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.promises.writeFile(
-    outputPath,
-    JSON.stringify(regulations, null, 2),
-    'utf8'
-  );
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    try {
+        // Fetch data from Supabase
+        const { data, error } = await supabase
+            .from('state_bill_entries')
+            .select('*');
+
+        if (error) {
+            throw new Error(`Error fetching data: ${error.message}`);
+        }
+
+        // Validate and transform data using Zod
+        const validatedBills = data.map((bill) => {
+            const parsedBill = InsuranceRegulationDataObject.safeParse(bill);
+
+            if (!parsedBill.success) {
+                console.error('Validation Error:', parsedBill.error.format());
+                return null; // Handle validation failures as needed
+            }
+
+            return parsedBill.data;
+        }).filter(Boolean); // Remove invalid entries
+
+        return res.status(200).json({ bills: validatedBills });
+
+    } catch (err) {
+        console.error('API Error:', err);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
 }
 ```
 
-### 5.5 Displaying the Regulations
+## 4. Minimal File Structure
 
-* **Main Page (app/page.tsx)**
-  * Loads JSON data server-side from ny-insurance-regulations.json and wy-insurance-regulations.json.
-  * Renders all regulations in a grid of cards.
-  * Provides a search bar and filters (by state, rule affected, status, etc.).
+The following structure is proposed to keep the project organized yet minimal. You may expand it later as the project grows:
 
-* **Card Component (components/regulation-card.tsx)**
-  * Takes a single regulation object as a prop.
-  * Displays its fields: title, state, status, summary, ruleAffected, etc.
+```
+.
+├── README.md
+├── app
+│   ├── api
+│   │   └── regulations
+│   │       └── route.ts        // API route: fetch + Zod validate + return JSON
+│   ├── favicon.ico
+│   ├── globals.css             // Tailwind & global styles
+│   ├── layout.tsx              // Next.js layout
+│   └── page.tsx                // Main page: fetch data from /api/regulations,
+│                               //           implement search & filter logic,
+│                               //           render regulation cards
+├── components
+│   └── ui                      // Any shared UI components (if needed)
+├── hooks
+│   └── use-mobile.ts           // (Optional: if your app uses custom hooks)
+├── instructions
+│   └── instructions.md         // Existing instructions (optional)
+├── lib
+│   └── utils.ts                // (Optional: shared utilities)
+├── next-env.d.ts
+├── next.config.ts
+├── package.json
+├── tsconfig.json
+└── ...
+```
 
-### 5.6 Example Usage Flow
+### Explanation of Folders and Files
+1. **app/api/regulations/route.ts**
+   * Central location for the API route to fetch data from Supabase and validate using Zod.
+   * Returns a JSON object to the frontend.
+2. **app/page.tsx**
+   * Main entry point for the app's UI.
+   * Fetches data from /api/regulations.
+   * Implements the search & filter logic on the client side.
+   * Displays a list of regulation cards (including a summarization section and the rules impacted).
+3. **components/ui/**
+   * If the team opts to move the "card" or other UI elements into separate components for reusability, they can place them here.
+4. **globals.css**
+   * Contains Tailwind setup and any global CSS needed.
+5. **layout.tsx**
+   * Defines the layout for Next.js 13/14, including `<html>`, `<body>`, etc.
 
-1. Developer/CI triggers a GET request to api/regulations/ (via app/api/regulations/route.ts).
-2. The route:
-   * Scrapes NY and WY 2024 data.
-   * Passes each item to OpenAI for analysis.
-   * Saves final JSON to data/ny-insurance-regulations.json and data/wy-insurance-regulations.json.
-3. The main Next.js page reads the JSON on load and displays the combined data set.
+## 5. Functional Requirements Detail
 
-## 6. Implementation Notes
+### 5.1. Fetching and Displaying Regulations
+* The application must load all relevant 2024 insurance regulations from the state_bill_entries table in Supabase.
+* Each regulation is validated against the Zod schema (InsuranceRegulationDataObject).
+* Any records failing validation can be discarded or flagged in the logs for follow-up.
+* Valid records are displayed on the main page as cards.
 
-1. **Minimizing Files**
-   * All scraping, analysis, saving logic is in one file (lib/regulation-scraper.ts).
-   * A single API route (api/regulations) orchestrates the entire data fetch/update pipeline.
-   * One UI component for the regulation card.
-   * The home page (page.tsx) loads data and orchestrates the display & filter logic.
+### 5.2. Card Structure
+* Each card must display:
+  * Bill identifier
+  * State and Session
+  * Status (e.g., "Passed" / "Pending")
+  * Summary (short description)
+  * Impact on Underwriting Guidelines:
+    * If isRuleP1Affected is true, show P1EffectExplanation.
+    * If isRuleP2Affected is true, show P2EffectExplanation.
 
-2. **Search & Filter Implementation**
-   * The simplest approach is to perform search & filtering on the server side if the data set is large, or do it client-side if the data set is modest.
-   * We can store query parameters in the URL (e.g., ?search=car insurance&state=NY) to keep them visible, or store the filter state in local component state.
+### 5.3. Search
+* Users can type a keyword (in the header, bill name, summary, or effect explanation) to narrow down cards.
+* Search must be case-insensitive.
+* Return only items that match the keyword.
 
-3. **OpenAI Rate Limits**
-   * Depending on volume of regulations, we must ensure we are within OpenAI rate limits.
+### 5.4. Filters
+* State filter: e.g., "All" or "Specific state name."
+* Status filter: e.g., "Passed," "Pending," etc.
+* Rule filter: e.g., "All Rules," "RuleP1," or "RuleP2."
 
-4. **Potential Expansions**
-   * Additional states can be added by following the same scraping patterns.
-   * The schema could be extended to handle more parameters or more rules.
+### 5.5. Performance & UX
+* The app should handle the use case of 10-50 new regulations added each month.
+* The UI should remain responsive, especially with the help of Tailwind and Next.js optimizations.
 
-## 7. Final Deliverables
+## 6. Sample Endpoint Behavior
 
-1. Working Next.js Application that:
-   * Scrapes 2024 regulations (NY & WY).
-   * Analyzes them with OpenAI.
-   * Persists to local JSON.
-   * Displays them in a user-friendly UI with search and filters.
+The main endpoint for retrieving data will be:
 
-2. Data/Documentation in the repository:
-   * data/*.json output files.
-   * Clear instructions in the README about how to run scraping & serve the site.
+`GET /api/regulations`
 
-3. Minimal, Organized File Structure ensuring easy onboarding for future developers.
+Response format:
 
-## 8. References
+```json
+{
+  "bills": [
+    {
+      "bill": "AB 123",
+      "state": "CA",
+      "session": "2024",
+      "status": "Passed",
+      "isInsuranceRelated": true,
+      "isRuleP1Affected": true,
+      "isRuleP2Affected": false,
+      "P1EffectExplanation": "Expands coverage for ...",
+      "P2EffectExplanation": "",
+      "summary": "This bill introduces new guidelines ..."
+    },
+    ...
+  ]
+}
+```
 
-* [Next.js Route Handlers](https://nextjs.org/docs)
-* [shadcn/UI](https://ui.shadcn.com/)
-* [Tailwind CSS Docs](https://tailwindcss.com/docs)
-* [OpenAI API Docs](https://platform.openai.com/docs/api-reference)
-* [Axios](https://axios-http.com/docs/intro)
-* [Cheerio](https://cheerio.js.org/)
-* [Zod](https://zod.dev/)
-* [Lucide Icons](https://lucide.dev/)
+## 7. Constraints & Considerations
+
+### 7.1. Security
+* Ensure the Supabase service role key and other secrets are stored securely (e.g., in environment variables).
+* Validate all data from external sources to protect from unexpected formats or malicious input.
+
+### 7.2. UI/UX
+* Must remain consistent with brand guidelines if provided.
+* Use Lucide Icons for any iconography.
+* Must be accessible (consider color contrast, semantic HTML, etc.).
+
+### 7.3. Scalability
+* The data set may grow over time. Ensure search and filter logic remains performant.
+
+## 8. Example Code for Context
+
+(Below are snippets from previous discussions. They are included here only for reference and not as final implementation.)
+
+### 8.1 API Route (app/api/regulations/route.ts)
+
+```typescript
+import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+import { z } from "zod"
+
+const InsuranceRegulationDataObject = z.object({
+  bill: z.string(),
+  state: z.string(),
+  session: z.string(),
+  status: z.string(),
+  isInsuranceRelated: z.boolean(),
+  isRuleP1Affected: z.boolean(),
+  isRuleP2Affected: z.boolean(),
+  P1EffectExplanation: z.string(),
+  P2EffectExplanation: z.string(),
+  summary: z.string(),
+})
+
+export async function GET(req: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
+  try {
+    const { data, error } = await supabase
+      .from("state_bill_entries")
+      .select("*")
+
+    if (error) {
+      throw new Error(`Error fetching data: ${error.message}`)
+    }
+
+    const validatedBills = data
+      .map((bill: unknown) => {
+        const parsed = InsuranceRegulationDataObject.safeParse(bill)
+        if (!parsed.success) {
+          console.error("Validation Error:", parsed.error.format())
+          return null
+        }
+        return parsed.data
+      })
+      .filter(Boolean)
+
+    return NextResponse.json({ bills: validatedBills })
+  } catch (err) {
+    console.error("API Error:", err)
+    return new NextResponse(
+      JSON.stringify({ error: "Internal Server Error" }),
+      { status: 500 }
+    )
+  }
+}
+```
+
+### 8.2 Main Page (app/page.tsx)
+
+```typescript
+"use client"
+import { useState, useEffect } from "react"
+
+export default function HomePage() {
+  const [bills, setBills] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filters, setFilters] = useState({
+    state: "",
+    status: "",
+    ruleAffected: "",
+  })
+
+  useEffect(() => {
+    fetch("/api/regulations")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.bills) {
+          setBills(data.bills)
+        }
+      })
+      .catch((error) => console.error("Fetch error:", error))
+  }, [])
+
+  const filteredBills = bills.filter((bill) => {
+    if (filters.state && bill.state !== filters.state) return false
+    if (filters.status && bill.status !== filters.status) return false
+    if (filters.ruleAffected === "RuleP1" && !bill.isRuleP1Affected) return false
+    if (filters.ruleAffected === "RuleP2" && !bill.isRuleP2Affected) return false
+    if (searchQuery) {
+      const combinedText = `${bill.bill} ${bill.summary} ${bill.P1EffectExplanation} ${bill.P2EffectExplanation}`.toLowerCase()
+      if (!combinedText.includes(searchQuery.toLowerCase())) {
+        return false
+      }
+    }
+    return true
+  })
+
+  return (
+    <main className="p-4 space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold">Insurance Regulations Dashboard</h1>
+        
+        <input
+          type="text"
+          placeholder="Search..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+
+        <div className="flex space-x-2">
+          <select
+            value={filters.state}
+            onChange={(e) => setFilters({ ...filters, state: e.target.value })}
+            className="p-2 border rounded"
+          >
+            <option value="">All States</option>
+            {/* ... */}
+          </select>
+
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            className="p-2 border rounded"
+          >
+            <option value="">All Status</option>
+            {/* ... */}
+          </select>
+
+          <select
+            value={filters.ruleAffected}
+            onChange={(e) =>
+              setFilters({ ...filters, ruleAffected: e.target.value })
+            }
+            className="p-2 border rounded"
+          >
+            <option value="">All Rules</option>
+            <option value="RuleP1">RuleP1</option>
+            <option value="RuleP2">RuleP2</option>
+          </select>
+        </div>
+      </div>
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredBills.map((bill) => (
+          <RegulationCard key={bill.bill} bill={bill} />
+        ))}
+      </section>
+    </main>
+  )
+}
+
+function RegulationCard({ bill }: { bill: any }) {
+  return (
+    <article className="p-4 border rounded shadow">
+      <h2 className="text-lg font-semibold">
+        {bill.bill} – {bill.state} ({bill.session})
+      </h2>
+      <p className="text-sm">
+        <strong>Status:</strong> {bill.status}
+      </p>
+      <p className="text-sm mb-2">{bill.summary}</p>
+
+      {bill.isRuleP1Affected && (
+        <div className="text-xs bg-yellow-100 p-2 mb-2 rounded">
+          <strong>Rule P1 Impact:</strong> {bill.P1EffectExplanation}
+        </div>
+      )}
+      {bill.isRuleP2Affected && (
+        <div className="text-xs bg-blue-100 p-2 mb-2 rounded">
+          <strong>Rule P2 Impact:</strong> {bill.P2EffectExplanation}
+        </div>
+      )}
+    </article>
+  )
+}
+```
+
+## 9. Key Outcomes
+* A simple, modern Next.js application to query and display insurance regulations data from Supabase.
+* End users can search quickly across all data points (bill name, state, summary, effect explanation).
+* Filter by state, status, or impacted rule.
+* The resulting UI helps the underwriting and compliance teams stay informed on how regulations may affect policy guidelines.
+
+## 10. Next Steps
+* Implement the above functionalities in a staging environment.
+* Conduct testing of the search and filter logic on realistic data sets.
+* Refine the design and user flows for clarity.
+* Integrate with potential OpenAI services if advanced text summarization or deeper insights are needed.
+
+**Important Note on Scope**
+
+This PRD contains references to both code snippets and a recommended file structure for context. Actual implementation details may vary based on team preferences, best practices, or updates to Next.js, Tailwind, and associated libraries.
