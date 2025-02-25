@@ -7,8 +7,8 @@ export const InsuranceRegulationSchema = z.object({
   isInsuranceRelated: z.boolean(),
   isRuleP1Affected: z.boolean(),
   isRuleP2Affected: z.boolean(),
-  P1EffectExplanation: z.string(),
-  P2EffectExplanation: z.string(),
+  P1EffectExplanation: z.string().nullable().transform(s => s ?? "No effect on Rule P1"),
+  P2EffectExplanation: z.string().nullable().transform(s => s ?? "No effect on Rule P2"),
   summary: z.string(),
   section: z.string()
 })
