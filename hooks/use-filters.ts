@@ -3,23 +3,19 @@ import { InsuranceRegulation } from "@/lib/types"
 
 interface Filters {
   state: string
-  status: string
+  status: "all" | "passed" | "failed"
   ruleAffected: "all" | "P1" | "P2"
 }
 
 export function useFilters(items: InsuranceRegulation[]) {
   const [filters, setFilters] = useState<Filters>({
     state: "",
-    status: "",
+    status: "all",
     ruleAffected: "all"
   })
 
   const uniqueStates = useMemo(() => {
     return Array.from(new Set(items.map(item => item.state))).sort()
-  }, [items])
-
-  const uniqueStatuses = useMemo(() => {
-    return Array.from(new Set(items.map(item => item.status.trim()))).sort()
   }, [items])
 
   const filteredItems = useMemo(() => {
@@ -28,8 +24,11 @@ export function useFilters(items: InsuranceRegulation[]) {
         return false
       }
       
-      if (filters.status && item.status.trim() !== filters.status) {
-        return false
+      if (filters.status !== "all") {
+        const normalized = item.status.toLowerCase().trim()
+        const isPassed = normalized.includes('assigned') || normalized.includes('signed')
+        if (filters.status === "passed" && !isPassed) return false
+        if (filters.status === "failed" && isPassed) return false
       }
       
       if (filters.ruleAffected === "P1" && !item.isRuleP1Affected) {
@@ -48,7 +47,6 @@ export function useFilters(items: InsuranceRegulation[]) {
     filters,
     setFilters,
     uniqueStates,
-    uniqueStatuses,
     filteredItems
   }
 } 

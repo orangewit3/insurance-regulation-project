@@ -70,13 +70,15 @@ export default function Home() {
 
               <Select
                 value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                onChange={(e) => setFilters({ 
+                  ...filters, 
+                  status: e.target.value as "all" | "passed" | "failed" 
+                })}
                 className="flex-1"
               >
-                <option value="">All Statuses</option>
-                {uniqueStatuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
+                <option value="all">All Status</option>
+                <option value="passed">Passed</option>
+                <option value="failed">Failed</option>
               </Select>
 
               <Select

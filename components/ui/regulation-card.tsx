@@ -9,6 +9,18 @@ interface RegulationCardProps {
 export function RegulationCard({ regulation }: RegulationCardProps) {
   const cleanBillNumber = regulation.bill.replace(/\s+/g, ' ').trim()
   
+  const getStatusDisplay = (status: string) => {
+    const normalized = status.toLowerCase().trim()
+    if (normalized.includes('assigned') || normalized.includes('signed')) return 'Passed'
+    return 'Failed'
+  }
+
+  const getStatusVariant = (status: string) => {
+    const normalized = status.toLowerCase().trim()
+    if (normalized.includes('assigned') || normalized.includes('signed')) return 'success'
+    return 'failed'
+  }
+  
   return (
     <Card className="h-full">
       <CardHeader>
@@ -16,13 +28,15 @@ export function RegulationCard({ regulation }: RegulationCardProps) {
           <CardTitle className="text-lg">
             {cleanBillNumber} - {regulation.state}
           </CardTitle>
-          <Badge 
-            variant={regulation.status.toLowerCase().includes('signed') ? "success" : "default"}
-          >
-            {regulation.status.trim()}
+          <Badge variant={getStatusVariant(regulation.status)}>
+            {getStatusDisplay(regulation.status)}
           </Badge>
         </div>
-        <p className="text-sm text-muted-foreground">{regulation.section}</p>
+        <div className="mt-2 inline-block">
+          <span className="px-2 py-1 bg-orange-50 rounded-md border border-orange-200 text-sm font-medium text-orange-800">
+            {regulation.section}
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{regulation.summary}</p>
