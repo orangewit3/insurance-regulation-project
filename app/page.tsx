@@ -17,7 +17,7 @@ export default function Home() {
     filters,
     setFilters,
     uniqueStates,
-    uniqueStatuses,
+    uniqueSections,
     filteredItems: filteredByFilters
   } = useFilters(regulations)
   
@@ -92,6 +92,17 @@ export default function Home() {
                 <option value="all">All Rules</option>
                 <option value="P1">Rule P1</option>
                 <option value="P2">Rule P2</option>
+              </Select>
+
+              <Select
+                value={filters.section}
+                onChange={(e) => setFilters({ ...filters, section: e.target.value })}
+                className="flex-1"
+              >
+                <option value="">All Sections</option>
+                {uniqueSections.map(section => (
+                  <option key={section} value={section}>{section}</option>
+                ))}
               </Select>
             </div>
           </div>
