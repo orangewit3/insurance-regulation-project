@@ -121,9 +121,9 @@ export default function Home() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
           {[...Array(6)].map((_, index) => (
-            <Card key={index} className="w-full">
+            <Card key={index} className="w-full h-[300px] mb-6 break-inside-avoid">
               <CardHeader>
                 <Skeleton className="h-4 w-[250px]" />
               </CardHeader>
@@ -136,9 +136,11 @@ export default function Home() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
           {filteredItems.map((regulation) => (
-            <RegulationCard key={regulation.bill} regulation={regulation} />
+            <div key={regulation.bill} className="mb-6 break-inside-avoid">
+              <RegulationCard regulation={regulation} />
+            </div>
           ))}
         </div>
       )}

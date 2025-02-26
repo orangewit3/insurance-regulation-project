@@ -1,6 +1,7 @@
 import { InsuranceRegulation } from "@/lib/types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 interface RegulationCardProps {
   regulation: InsuranceRegulation
@@ -33,9 +34,15 @@ export function RegulationCard({ regulation }: RegulationCardProps) {
   const p1Details = formatExplanation(regulation.P1EffectExplanation)
   const p2Details = formatExplanation(regulation.P2EffectExplanation)
   
+  // Determine if card has any impact explanations
+  const hasImpacts = regulation.isRuleP1Affected || regulation.isRuleP2Affected
+  
   return (
-    <Card className="h-full">
-      <CardHeader>
+    <Card className={cn(
+      "flex flex-col w-full",
+      hasImpacts ? "h-[600px]" : "h-[300px]"
+    )}>
+      <CardHeader className="flex-none">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">
             {cleanBillNumber} - {regulation.state}
@@ -50,7 +57,7 @@ export function RegulationCard({ regulation }: RegulationCardProps) {
           </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 overflow-y-auto flex-1">
         <p className="text-sm text-muted-foreground">{regulation.summary}</p>
         
         {regulation.isRuleP1Affected ? (
